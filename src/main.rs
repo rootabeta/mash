@@ -1,7 +1,8 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::Parser;
 use std::fs::read_to_string;
 use std::io::{self, Write};
+use std::path::Path;
 use std::process::Command;
 use std::thread;
 
@@ -24,6 +25,10 @@ struct Args {
     #[arg(short, long)]
     threads: Option<usize>,
 
+    /// Allow clobbering of filenames
+    #[arg(short, long, default_value_t = false)]
+    clobber: bool,
+
     /// Command and arguments, with %INPUT% in place of the IP
     #[arg(num_args(1..))]
     command: Vec<String>
@@ -34,9 +39,10 @@ struct Job {
     command: String,
     // Arguments, preformatted to include targets
     arguments: Vec<String>,
-    // File to write output to
+    // Filepath to write output to
     stdout_file: Option<String>,
-
+    // Allow clobbering files
+    clobber: bool
 }
 
 fn read_lines(file: String) -> Result<Vec<String>> { 
@@ -52,11 +58,17 @@ fn read_lines(file: String) -> Result<Vec<String>> {
 // Run command, mirroring stdout to %TARGET-argv[0].stdout
 // Stdout and stderr are echoed to screen
 fn launch_command(job: Job) -> Result<String> { 
+    
+    // If the output file already exists and we do not wish to clobber, 
+    // then abort before running any command
+    // TODO
+
     let output = Command::new(job.command)
         .args(job.arguments)
         .output()?;
 
     io::stdout().write_all(&output.stdout)?;
+    io::stderr().write_all(&output.stderr)?;
     let _ = io::stdout().flush();
 
     Ok("Placeholder".to_string())
@@ -67,11 +79,11 @@ fn main() {
 
     let num_threads = args.threads.unwrap_or(num_cpus::get());
     let output_dir = args.output.unwrap_or(".".to_string());
+    let allow_clobber = args.clobber;
 
     let (mut tx, rx) = spmc::channel::<Job>();
 
     let input_lines = read_lines(args.input_file).expect("Failed to read input file");
-
 
     let mut thread_handles = Vec::new();
     // Launch threads to consume jobs
@@ -82,9 +94,9 @@ fn main() {
                     Job { 
                         command: "/bin/ls".to_string(),
                         arguments: vec!["-l".to_string(), "-a".to_string(), "/home".to_string()],
-                        stdout_file: Some("test".to_string())
+                        stdout_file: Some("test".to_string()),
+                        clobber: false,
                     }
-
                 );
             })
         );
