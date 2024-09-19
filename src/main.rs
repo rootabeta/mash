@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
+use std::fs::read_to_string;
 use std::thread;
 
 /// Multithread anything
@@ -21,7 +22,7 @@ struct Args {
     #[arg(short, long)]
     threads: Option<usize>,
 
-    /// Command and arguments, with %TARGET% in place of the IP
+    /// Command and arguments, with %INPUT% in place of the IP
     #[arg(num_args(1..))]
     command: Vec<String>
 }
@@ -34,12 +35,14 @@ struct Job {
 
 }
 
-fn load_jobs(input_file: String, command: Vec<String>, output_dir: String, no_stdout: bool) -> Result<Vec<Job>> { 
-/*    for i in args.command.iter() { 
-        println!("{}", i);
+fn read_lines(file: String) -> Result<Vec<String>> { 
+    let mut result = Vec::new();
+
+    for line in read_to_string(file)?.lines() { 
+        result.push(line.to_string())
     }
-*/
-    todo!();
+
+    Ok(result)
 }
 
 // Run command, mirroring stdout to %TARGET-argv[0].stdout
@@ -56,8 +59,8 @@ fn main() {
 
     let (mut tx, rx) = spmc::channel::<Job>();
 
-    // Populate queue with jobs
-    let jobs = load_jobs(args.input_file, args.command, output_dir, args.no_record).unwrap();
+    let input_lines = read_lines(args.input_file).expect("Failed to read input file");
+
 
     // Launch threads to consume jobs
     for _ in 0..num_threads { 
