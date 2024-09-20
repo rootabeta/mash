@@ -1,2 +1,3 @@
 # mash
-A utility to run commands against multiple IPs, even when not officially supported by the command
+Automatic multiplexing of terminal commands
+I'm sure there's a way to do this with xargs and such but bash scripting is hard
